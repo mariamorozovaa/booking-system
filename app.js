@@ -1,6 +1,6 @@
 import ROOMS from "./rooms.js";
 
-let bookings = [];
+let bookings = JSON.parse(localStorage.getItem("bookings")) || [];
 let selectedRoom = null;
 
 const roomsGrid = document.getElementById("roomsGrid");
@@ -16,6 +16,10 @@ const bookingSummary = document.getElementById("bookingSummary");
 const customerName = document.getElementById("customerName");
 const customerEmail = document.getElementById("customerEmail");
 const customerPhone = document.getElementById("customerPhone");
+
+const tabButtons = document.querySelectorAll(".tab-btn");
+const tabContents = document.querySelectorAll(".tab-content");
+
 const bookingsTab = document.getElementById("bookingsTab");
 const bookingsCount = document.getElementById("bookingsCount");
 const statusFilter = document.getElementById("statusFilter");
@@ -136,6 +140,8 @@ checkOutDate.value = tomorrow.toISOString().split("T")[0];
 checkInDate.min = today.toISOString().split("T")[0];
 checkOutDate.min = tomorrow.toISOString().split("T")[0];
 
+bookingsCount.textContent = bookings.length;
+
 function catchErrors() {
   if (!checkInDate.value || !checkOutDate.value) {
     alert("❌ Пожалуйста, выберите даты заезда и выезда");
@@ -178,15 +184,17 @@ btnSubmit.addEventListener("click", (e) => {
   };
 
   if (currentBooking.nameOfClient && currentBooking.emailOfClient && currentBooking.phoneOfClient) {
-    bookings.push(currentBooking);
-    console.log(bookings);
-
     var options = {
       year: "numeric",
       month: "long",
       day: "numeric",
     };
 
+    bookings.push(currentBooking);
+    localStorage.setItem("bookings", JSON.stringify(bookings));
+    bookingsCount.textContent = bookings.length;
+
+    closeTheModal();
     alert(`
    ✅ Бронирование создано!
 
@@ -196,8 +204,29 @@ btnSubmit.addEventListener("click", (e) => {
 
    Статус: Ожидает подтверждения
    `);
-    closeTheModal();
+
+    const bookingsArr = localStorage.getItem("bookings");
+    bookingsCount.textContent = JSON.parse(bookingsArr).length;
+  } else {
+    alert("❌ Введите данные о себе");
+    //сделать другую проверку
   }
+});
+
+tabButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    tabButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    tabContents.forEach((content) => {
+      if (content.id === tab + "Tab") {
+        content.classList.add("active");
+      } else {
+        content.classList.remove("active");
+      }
+    });
+  });
 });
 
 checkOutDate.addEventListener("change", (e) => {
@@ -208,12 +237,12 @@ checkInDate.addEventListener("change", (e) => {
 });
 
 function defineBookingSummary() {
+  if (!selectedRoom) return;
   const checkOutCurr = new Date(checkOutDate.value);
   const checkInCurr = new Date(checkInDate.value);
 
   const diffTime = checkOutCurr - checkInCurr;
   const quantityOfNights = diffTime / (1000 * 60 * 60 * 24);
-
   let priceForNights = selectedRoom.pricePerNight;
   let totalPrice = priceForNights * quantityOfNights;
 
@@ -238,4 +267,8 @@ function checkRoomAvailible([existDateIn, existDateOut], [checkDateIn, checkDate
     alert("бронирование невозможно");
     return false;
   }
+  return true;
 }
+
+//Получить строку из localStorage с помощью метода localStorage.getItem().
+// Преобразовать строку обратно в массив с помощью метода JSON.parse().
