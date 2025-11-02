@@ -17,18 +17,22 @@ const customerName = document.getElementById("customerName");
 const customerEmail = document.getElementById("customerEmail");
 const customerPhone = document.getElementById("customerPhone");
 
-const tabButtons = document.querySelectorAll(".tab-btn");
-const tabContents = document.querySelectorAll(".tab-content");
+// const tabButtons = document.querySelectorAll(".tab-btn");
+// const tabContents = document.querySelectorAll(".tab-content");
+
+const bookingsCount = document.getElementById("bookingsCount");
+const roomsTabBtn = document.querySelector('.tab-btn[data-tab="rooms"]');
+const bookingsTabBtn = document.querySelector('.tab-btn[data-tab="bookings"]');
 
 const bookingsTab = document.getElementById("bookingsTab");
-const bookingsCount = document.getElementById("bookingsCount");
-const statusFilter = document.getElementById("statusFilter");
-const searchInput = document.getElementById("searchInput");
+const roomsTab = document.getElementById("roomsTab");
+
 const bookingsList = document.getElementById("bookingsList");
 const emptyBookings = document.getElementById("emptyBookings");
 const bookingForm = document.getElementById("bookingForm");
 
-const tabBtnChoice = document.querySelectorAll(".tab-btn");
+const statusFilter = document.getElementById("statusFilter");
+const searchInput = document.getElementById("searchInput");
 
 function createRoomCardHTML(room) {
   return ` 
@@ -199,7 +203,7 @@ btnSubmit.addEventListener("click", (e) => {
    ✅ Бронирование создано!
 
    Номер: ${currentBooking.roomName}
-   Даты: ${currentBooking.checkIn.toLocaleString("ru", options)} - ${currentBooking.checkOut.toLocaleString("ru", options)}
+   Даты: ${formatDate(currentBooking.checkIn)} - ${formatDate(currentBooking.checkOut)}
    Сумма: ${formatMoney(currentBooking.totalPrice)}
 
    Статус: Ожидает подтверждения
@@ -207,26 +211,45 @@ btnSubmit.addEventListener("click", (e) => {
 
     const bookingsArr = localStorage.getItem("bookings");
     bookingsCount.textContent = JSON.parse(bookingsArr).length;
+
+    emptyBookings.style.display = "none";
+    bookingsList.style.display = "flex";
+    roomsTabBtn.classList.remove("active");
+    bookingsTabBtn.classList.add("active");
+
+    roomsTab.classList.remove("active");
+    bookingsTab.classList.add("active");
+
+    renderBookings(bookingsArr);
   } else {
+    emptyBookings.style.display = "flex";
     alert("❌ Введите данные о себе");
     //сделать другую проверку
   }
 });
 
-tabButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const tab = btn.dataset.tab;
-    tabButtons.forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
+function formatDate(date) {
+  var options = {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  };
 
-    tabContents.forEach((content) => {
-      if (content.id === tab + "Tab") {
-        content.classList.add("active");
-      } else {
-        content.classList.remove("active");
-      }
-    });
-  });
+  return date.toLocaleString("ru", options);
+}
+
+bookingsTabBtn.addEventListener("click", () => {
+  roomsTabBtn.classList.remove("active");
+  roomsTab.classList.remove("active");
+  bookingsTab.classList.add("active");
+  bookingsTabBtn.classList.add("active");
+});
+
+roomsTabBtn.addEventListener("click", () => {
+  roomsTabBtn.classList.add("active");
+  roomsTab.classList.add("active");
+  bookingsTab.classList.remove("active");
+  bookingsTabBtn.classList.remove("active");
 });
 
 checkOutDate.addEventListener("change", (e) => {
@@ -270,5 +293,64 @@ function checkRoomAvailible([existDateIn, existDateOut], [checkDateIn, checkDate
   return true;
 }
 
-//Получить строку из localStorage с помощью метода localStorage.getItem().
-// Преобразовать строку обратно в массив с помощью метода JSON.parse().
+function editBookingsState() {
+  const bookingsArr = localStorage.getItem("bookings");
+  if (bookings.length === 0) {
+    emptyBookings.style.display = "block";
+    bookingsList.style.display = "none";
+  } else {
+    emptyBookings.style.display = "none";
+    bookingsList.style.display = "flex";
+    renderBookings(bookingsArr);
+  }
+}
+
+bookingsTabBtn.addEventListener("click", editBookingsState);
+
+function createBookingCardHTML(bookingsCard) {
+  return ` 
+  <div class="booking-card ${
+    bookingsCard.status === "pending"
+      ? "pending"
+      : bookingsCard.status === "confirmed"
+      ? "confirmed"
+      : bookingsCard.status === "cancelled"
+      ? "cancelled"
+      : ""
+  }">
+        <div class="booking-header">
+          <div class="booking-icon">${bookingsCard.roomIcon}</div>
+          <div class="booking-room-name">${bookingsCard.roomName}</div>
+          <div class="booking-dates">
+            ${formatDate(new Date(bookingsCard.checkIn))} - ${formatDate(new Date(bookingsCard.checkOut))}
+          </div>
+          <div class="booking-status">${
+            bookingsCard.status === "pending"
+              ? "⏳ Ожидает подтверждения"
+              : bookingsCard.status === "confirmed"
+              ? "✅ Подтверждено"
+              : bookingsCard.status === "cancelled"
+              ? "❌ Отменено"
+              : ""
+          } </div>
+        </div>
+        <div class="booking-body">
+          <span>Клиент: ${bookingsCard.nameOfClient}</span>
+          <span>Email: ${bookingsCard.emailOfClient}</span>
+          <span>Телефон: ${bookingsCard.phoneOfClient}</span>
+          <span>Ночей: ${bookingsCard.quantityOfNights}</span>
+          <span>Стоимость: ${bookingsCard.totalPrice}</span>
+        </div>
+
+        <div class="booking-actions">
+          <button class="btn-action btn-confirm">✅ Подтвердить</button>
+          <button class="btn-action btn-cancel-booking">❌ Отменить</button>
+        </div>
+    </div>
+    `;
+}
+
+function renderBookings() {
+  const bookingsHTML = bookings.map((booking) => createBookingCardHTML(booking)).join("");
+  bookingsList.innerHTML = bookingsHTML;
+}
