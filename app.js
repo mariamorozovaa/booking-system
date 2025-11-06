@@ -1,6 +1,6 @@
 import ROOMS from "./rooms.js";
 
-let bookings = JSON.parse(localStorage.getItem("bookings")) || [];
+let bookings = JSON.parse(localStorage.getItem("booking-system-bookings")) || [];
 let selectedRoom = null;
 
 const roomsGrid = document.getElementById("roomsGrid");
@@ -182,7 +182,7 @@ btnSubmit.addEventListener("click", (e) => {
   };
 
   bookings.push(currentBooking);
-  localStorage.setItem("bookings", JSON.stringify(bookings));
+  localStorage.setItem("booking-system-bookings", JSON.stringify(bookings));
   bookings.filter((b) => b.status !== "cancelled").length;
 
   bookingModal.style.display = "none";
@@ -197,19 +197,14 @@ btnSubmit.addEventListener("click", (e) => {
    Статус: Ожидает подтверждения
    `);
 
-  const bookingsArr = localStorage.getItem("bookings");
-
   updateBookingsCount();
 
   emptyBookings.style.display = "none";
   bookingsList.style.display = "flex";
-  roomsTabBtn.classList.remove("active");
-  bookingsTabBtn.classList.add("active");
+  openBookingsTab();
 
-  roomsTab.classList.remove("active");
-  bookingsTab.classList.add("active");
-
-  filterByStatus(statusFilter.value);
+  filterByStatus("pending");
+  statusFilter.value = "pending";
 });
 
 function formatDate(date) {
@@ -222,13 +217,18 @@ function formatDate(date) {
   return date.toLocaleString("ru", options);
 }
 
-bookingsTabBtn.addEventListener("click", () => {
+bookingsTabBtn.addEventListener("click", (e) => {
+  openBookingsTab(e);
+});
+
+function openBookingsTab() {
   roomsTabBtn.classList.remove("active");
   roomsTab.classList.remove("active");
-  bookingsTab.classList.add("active");
+
   bookingsTabBtn.classList.add("active");
+  bookingsTab.classList.add("active");
   filterByStatus(statusFilter.value);
-});
+}
 
 roomsTabBtn.addEventListener("click", () => {
   roomsTabBtn.classList.add("active");
@@ -313,7 +313,7 @@ function updateBookingsCount() {
 
 function createBookingCardHTML(bookingsCard) {
   return ` 
-  <div class="booking-card ${bookingsCard.status}">
+  <div class="booking-card ${bookingsCard.status}" data-id="${bookingsCard.id}">
         <div class="booking-header">
           <div class="booking-icon">${bookingsCard.roomIcon}</div>
           <div class="booking-room-name">${bookingsCard.roomName}</div>
@@ -352,21 +352,13 @@ function createBookingCardHTML(bookingsCard) {
     `;
 }
 
-function renderBookings() {
-  const bookingsHTML = bookings.map((booking) => createBookingCardHTML(booking)).join("");
-  bookingsList.innerHTML = bookingsHTML;
-}
-
 bookingsList.addEventListener("click", function (e) {
-  const cards = bookingsList.querySelectorAll(".booking-card");
-  let bookingIndex = -1;
+  const card = e.target.closest(".booking-card");
+  if (!card) return;
 
-  for (let i = 0; i < cards.length; i++) {
-    if (cards[i].contains(e.target)) {
-      bookingIndex = i;
-      break;
-    }
-  }
+  const bookingId = card.dataset.id;
+  const bookingIndex = bookings.findIndex((b) => b.id === bookingId);
+  if (bookingIndex === -1) return;
 
   if (e.target.classList.contains("btn-confirm")) {
     bookings[bookingIndex].status = "confirmed";
@@ -397,10 +389,34 @@ bookingsList.addEventListener("click", function (e) {
   }
 });
 
+customerName.addEventListener("change", () => {
+  if (!customerName.value) {
+    bookingSummary.innerHTML = `❌ Введите имя и фамилию`;
+  } else defineBookingSummary();
+});
+
+customerEmail.addEventListener("change", () => {
+  if (!customerEmail.value) {
+    bookingSummary.innerHTML = `❌ Введите Email`;
+  } else defineBookingSummary();
+});
+
+customerPhone.addEventListener("change", () => {
+  if (!customerPhone.value) {
+    bookingSummary.innerHTML = `❌ Введите номер телефона`;
+  } else defineBookingSummary();
+});
+
 function saveAndRenderBookings() {
-  localStorage.setItem("bookings", JSON.stringify(bookings));
+  localStorage.setItem("booking-system-bookings", JSON.stringify(bookings));
   updateBookingsCount();
   filterByStatus(statusFilter.value);
+}
+
+function renderBookings() {
+  const sorted = sortBookingsByDate(bookings);
+  const bookingsHTML = sorted.map(createBookingCardHTML).join("");
+  bookingsList.innerHTML = bookingsHTML;
 }
 
 function filterByStatus(status) {
@@ -408,6 +424,12 @@ function filterByStatus(status) {
 
   if (status !== "all") {
     filtered = bookings.filter((b) => b.status === status);
+  }
+
+  if (bookings.length === 0) {
+    bookingsList.style.display = "none";
+    emptyBookings.style.display = "block";
+    return;
   }
 
   if (filtered.length === 0) {
@@ -418,9 +440,16 @@ function filterByStatus(status) {
   }
   emptyBookings.style.display = "none";
   bookingsList.style.display = "flex";
-  bookingsList.innerHTML = filtered.map((b) => createBookingCardHTML(b)).join("");
+  const sorted = sortBookingsByDate(filtered);
+  bookingsList.innerHTML = sorted.map(createBookingCardHTML).join("");
 }
 
 statusFilter.addEventListener("change", (e) => {
   filterByStatus(e.target.value);
 });
+
+function sortBookingsByDate(bookings) {
+  return bookings.slice().sort((a, b) => {
+    return new Date(b.dateCreateBooking) - new Date(a.dateCreateBooking);
+  });
+}
