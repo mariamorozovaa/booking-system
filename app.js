@@ -26,11 +26,8 @@ const roomsTab = document.getElementById("roomsTab");
 
 const bookingsList = document.getElementById("bookingsList");
 const emptyBookings = document.getElementById("emptyBookings");
-const bookingForm = document.getElementById("bookingForm");
 
-const emptyBookingsFilter = document.getElementById("emptyBookingsFilter");
 const statusFilter = document.getElementById("statusFilter");
-
 const searchInput = document.getElementById("searchInput");
 
 function createRoomCardHTML(room) {
@@ -413,10 +410,18 @@ function saveAndRenderBookings() {
   filterByStatus(statusFilter.value);
 }
 
-function renderBookings() {
-  const sorted = sortBookingsByDate(bookings);
-  const bookingsHTML = sorted.map(createBookingCardHTML).join("");
-  bookingsList.innerHTML = bookingsHTML;
+function renderBookings(filteredBookings) {
+  if (filteredBookings.length === 0) {
+    bookingsList.style.display = "none";
+    emptyBookings.style.display = "block";
+    emptyBookings.querySelector("p").textContent = "📊 Нет бронирований для отображения";
+    return;
+  }
+
+  emptyBookings.style.display = "none";
+  bookingsList.style.display = "flex";
+  const sorted = sortBookingsByDate(filteredBookings);
+  bookingsList.innerHTML = sorted.map(createBookingCardHTML).join("");
 }
 
 function filterByStatus(status) {
@@ -453,3 +458,31 @@ function sortBookingsByDate(bookings) {
     return new Date(b.dateCreateBooking) - new Date(a.dateCreateBooking);
   });
 }
+
+searchInput.addEventListener("input", () => {
+  let searchingText = searchInput.value.trim().toLowerCase();
+  let status = statusFilter.value;
+
+  const filteredBookings = bookings.filter((booking) => {
+    const matchesStatus = status === "all" || booking.status === status;
+    const matchesName = booking.nameOfClient.toLowerCase().includes(searchingText);
+    return matchesStatus && matchesName;
+  });
+
+  renderBookings(filteredBookings);
+});
+
+statusFilter.addEventListener("change", (e) => {
+  let status = e.target.value;
+  let searchingText = searchInput.value.trim().toLowerCase();
+
+  const filteredBookings = bookings.filter((booking) => {
+    const matchesStatus = status === "all" || booking.status === status;
+    const matchesName = booking.nameOfClient.toLowerCase().includes(searchingText);
+    return matchesStatus && matchesName;
+  });
+
+  renderBookings(filteredBookings);
+});
+
+//сделать валидацию полей формы бронирования
