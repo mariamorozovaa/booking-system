@@ -28,7 +28,9 @@ const bookingsList = document.getElementById("bookingsList");
 const emptyBookings = document.getElementById("emptyBookings");
 const bookingForm = document.getElementById("bookingForm");
 
+const emptyBookingsFilter = document.getElementById("emptyBookingsFilter");
 const statusFilter = document.getElementById("statusFilter");
+
 const searchInput = document.getElementById("searchInput");
 
 function createRoomCardHTML(room) {
@@ -96,12 +98,7 @@ function openBookingModal(roomId) {
         </div>
       </div>
     `;
-    bookingSummary.innerHTML = `
-        <p><strong>✅ Номер доступен на выбранные даты</strong></p>
-        <p>Количество ночей: ${1}</p>
-        <p>Цена за ночь: ${formatMoney(room.pricePerNight)}</p>
-        <p>Итого: ${formatMoney(room.pricePerNight * 1)}</p>
-    `;
+    defineBookingSummary();
   }
 }
 
@@ -114,22 +111,18 @@ roomsGrid.addEventListener("click", (e) => {
 });
 
 closeModal.addEventListener("click", () => {
-  closeTheModal();
+  bookingModal.style.display = "none";
 });
 
 bookingModal.addEventListener("click", (e) => {
   if (e.target === bookingModal) {
-    closeTheModal();
+    bookingModal.style.display = "none";
   }
 });
 
 cancelBooking.addEventListener("click", () => {
-  closeTheModal();
-});
-
-function closeTheModal() {
   bookingModal.style.display = "none";
-}
+});
 
 const today = new Date();
 checkInDate.value = today.toISOString().split("T")[0];
@@ -143,30 +136,35 @@ checkOutDate.min = tomorrow.toISOString().split("T")[0];
 bookingsCount.textContent = bookings.filter((b) => b.status !== "cancelled").length;
 
 function catchErrors() {
+  const summary = defineBookingSummary();
   if (!checkInDate.value || !checkOutDate.value) {
-    alert("❌ Пожалуйста, выберите даты заезда и выезда");
+    bookingSummary.innerHTML = `
+    <p style='color:red'><strong>❌ Пожалуйста, выберите даты заезда и выезда</strong></p>`;
     return true;
   } else if (checkInDate.value >= checkOutDate.value) {
-    // checkInDate.value = today.toISOString().split("T")[0];
-    alert("❌ Дата выезда должна быть позже даты заезда");
+    bookingSummary.innerHTML = `
+    <p style='color:red'><strong>❌ Дата выезда должна быть позже даты заезда</strong></p>`;
     return true;
-  }
-  // else if () {
-  //   alert("❌ К сожалению, номер занят на выбранные даты");
-  //   return true;
-  // }
-  else {
+  } else if (!summary) {
+    bookingSummary.innerHTML = `
+    <p style='color:red'><strong>❌ К сожалению, номер занят на выбранные даты</strong></p>`;
+    return true;
+  } else if (customerName.value.trim() === "" || customerEmail.value.trim() === "" || customerPhone.value.trim() === "") {
+    bookingSummary.innerHTML = `
+    <p style='color:red'><strong>❌ Введите данные о себе</strong></p>`;
+    return true;
+  } else {
     return false;
   }
 }
 
 btnSubmit.addEventListener("click", (e) => {
   e.preventDefault();
-  bookingForm.checkValidity(); //не работает
 
   const hasErrors = catchErrors();
   if (hasErrors) return;
 
+  const summary = defineBookingSummary();
   const currentBooking = {
     id: Math.random().toString(16).slice(2),
     roomId: selectedRoom.id,
@@ -175,21 +173,21 @@ btnSubmit.addEventListener("click", (e) => {
     nameOfClient: customerName.value,
     emailOfClient: customerEmail.value,
     phoneOfClient: customerPhone.value,
-    checkIn: defineBookingSummary()[0],
-    checkOut: defineBookingSummary()[1],
-    quantityOfNights: defineBookingSummary()[2],
-    totalPrice: defineBookingSummary()[3],
+    checkIn: summary[0],
+    checkOut: summary[1],
+    quantityOfNights: summary[2],
+    totalPrice: summary[3],
     status: "pending",
     dateCreateBooking: new Date(),
   };
 
-  if (currentBooking.nameOfClient && currentBooking.emailOfClient && currentBooking.phoneOfClient) {
-    bookings.push(currentBooking);
-    localStorage.setItem("bookings", JSON.stringify(bookings));
-    bookingsCount.textContent = bookings.length;
+  bookings.push(currentBooking);
+  localStorage.setItem("bookings", JSON.stringify(bookings));
+  bookings.filter((b) => b.status !== "cancelled").length;
 
-    closeTheModal();
-    alert(`
+  bookingModal.style.display = "none";
+
+  alert(`
    ✅ Бронирование создано!
 
    Номер: ${currentBooking.roomName}
@@ -199,24 +197,19 @@ btnSubmit.addEventListener("click", (e) => {
    Статус: Ожидает подтверждения
    `);
 
-    const bookingsArr = localStorage.getItem("bookings");
+  const bookingsArr = localStorage.getItem("bookings");
 
-    updateBookingsCount();
+  updateBookingsCount();
 
-    emptyBookings.style.display = "none";
-    bookingsList.style.display = "flex";
-    roomsTabBtn.classList.remove("active");
-    bookingsTabBtn.classList.add("active");
+  emptyBookings.style.display = "none";
+  bookingsList.style.display = "flex";
+  roomsTabBtn.classList.remove("active");
+  bookingsTabBtn.classList.add("active");
 
-    roomsTab.classList.remove("active");
-    bookingsTab.classList.add("active");
+  roomsTab.classList.remove("active");
+  bookingsTab.classList.add("active");
 
-    renderBookings(bookingsArr);
-  } else {
-    emptyBookings.style.display = "flex";
-    alert("❌ Введите данные о себе");
-    //сделать другую проверку
-  }
+  filterByStatus(statusFilter.value);
 });
 
 function formatDate(date) {
@@ -234,6 +227,7 @@ bookingsTabBtn.addEventListener("click", () => {
   roomsTab.classList.remove("active");
   bookingsTab.classList.add("active");
   bookingsTabBtn.classList.add("active");
+  filterByStatus(statusFilter.value);
 });
 
 roomsTabBtn.addEventListener("click", () => {
@@ -252,55 +246,70 @@ checkInDate.addEventListener("change", (e) => {
 
 function defineBookingSummary() {
   if (!selectedRoom) return;
-  const checkOutCurr = new Date(checkOutDate.value);
   const checkInCurr = new Date(checkInDate.value);
+  const checkOutCurr = new Date(checkOutDate.value);
 
   const diffTime = checkOutCurr - checkInCurr;
   const quantityOfNights = diffTime / (1000 * 60 * 60 * 24);
   let priceForNights = selectedRoom.pricePerNight;
   let totalPrice = priceForNights * quantityOfNights;
 
-  bookingSummary.innerHTML = `
-    <p><strong>✅ Номер доступен на выбранные даты</strong></p>
-    <p>Количество ночей:</strong> ${quantityOfNights}</p>
-    <p>Цена за ночь: ${formatMoney(priceForNights)}</p>
-    <p>Итого: ${formatMoney(totalPrice)}</p>
-`;
-
-  if (checkOutCurr < checkInCurr) {
+  if (checkOutCurr < checkInCurr || quantityOfNights <= 0) {
     bookingSummary.innerHTML = `
-    <p><strong>❌ Дата выезда должна быть позже даты заезда</strong></p>
+    <p style='color:red'><strong>❌ Дата выезда должна быть позже даты заезда</strong></p>
 `;
+    return;
   }
+
+  let roomIsAvailable = true;
+
+  for (let i = 0; i < bookings.length; i++) {
+    const bookingRoom = bookings[i];
+    if (bookingRoom.status === "cancelled") {
+      continue;
+    }
+
+    if (bookingRoom.roomId === selectedRoom.id) {
+      const existIn = new Date(bookingRoom.checkIn);
+      const existOut = new Date(bookingRoom.checkOut);
+
+      const newIn = new Date(checkInDate.value);
+      const newOut = new Date(checkOutDate.value);
+
+      if (!checkRoomAvailible(existIn, existOut, newIn, newOut)) {
+        roomIsAvailable = false;
+      }
+    }
+  }
+
+  if (!roomIsAvailable) {
+    bookingSummary.innerHTML = `
+    <p style='color:red'><strong>❌ К сожалению, номер занят на выбранные даты</strong></p>
+`;
+    return;
+  }
+
+  bookingSummary.innerHTML = `
+      <p>Количество ночей:</strong> ${quantityOfNights}</p>
+      <p>Цена за ночь: ${formatMoney(priceForNights)}</p>
+      <p>────────────────────────</p>
+      <p>Итого: ${formatMoney(totalPrice)}</p><br>
+      <p>✅ Номер доступен на выбранные даты</p>
+  `;
 
   return [checkInCurr, checkOutCurr, quantityOfNights, totalPrice];
 }
 
-function checkRoomAvailible([existDateIn, existDateOut], [checkDateIn, checkDateOut]) {
-  if (existDateIn < checkDateOut && existDateOut > checkDateIn) {
-    alert("❌ Бронирование невозможно");
+function checkRoomAvailible(existDateIn, existDateOut, checkDateIn, checkDateOut) {
+  if (existDateIn <= checkDateOut && existDateOut >= checkDateIn) {
     return false;
   }
   return true;
 }
 
-function editBookingsState() {
-  const bookingsArr = localStorage.getItem("bookings");
-  if (bookings.length === 0) {
-    emptyBookings.style.display = "block";
-    bookingsList.style.display = "none";
-  } else {
-    emptyBookings.style.display = "none";
-    bookingsList.style.display = "flex";
-    renderBookings(bookingsArr);
-  }
-}
-
 function updateBookingsCount() {
   bookingsCount.textContent = bookings.filter((b) => b.status !== "cancelled").length;
 }
-
-bookingsTabBtn.addEventListener("click", editBookingsState);
 
 function createBookingCardHTML(bookingsCard) {
   return ` 
@@ -348,37 +357,70 @@ function renderBookings() {
   bookingsList.innerHTML = bookingsHTML;
 }
 
-bookingsList.addEventListener("click", (e) => {
-  const bookingCardEl = e.target.closest(".booking-card");
-  const bookingIndex = Array.from(bookingsList.children).indexOf(bookingCardEl);
+bookingsList.addEventListener("click", function (e) {
+  const cards = bookingsList.querySelectorAll(".booking-card");
+  let bookingIndex = -1;
+
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].contains(e.target)) {
+      bookingIndex = i;
+      break;
+    }
+  }
 
   if (e.target.classList.contains("btn-confirm")) {
     bookings[bookingIndex].status = "confirmed";
     saveAndRenderBookings();
-    alert(`✅ Бронирование подтверждено!
-
-   ${bookings[bookingIndex].roomName}
-   ${bookings[bookingIndex].nameOfClient}`);
-  }
-
-  if (e.target.classList.contains("btn-cancel-booking")) {
-    const confirmCancelBooking = confirm(`Отменить бронирование?
+    updateBookingsCount();
+    alert(`
+    ✅ Бронирование подтверждено!
 
    ${bookings[bookingIndex].roomName}
    ${bookings[bookingIndex].nameOfClient}
-   ${formatDate(new Date(bookings[bookingIndex].checkIn))} - ${formatDate(new Date(bookings[bookingIndex].checkOut))}`);
-    if (confirmCancelBooking) {
+   `);
+  }
+
+  if (e.target.classList.contains("btn-cancel-booking")) {
+    const confirmCancel = confirm(`
+    Отменить бронирование?
+
+    ${bookings[bookingIndex].roomName}
+    ${bookings[bookingIndex].nameOfClient}
+    ${formatDate(new Date(bookings[bookingIndex].checkIn))} - ${formatDate(new Date(bookings[bookingIndex].checkOut))} `);
+
+    if (confirmCancel) {
       bookings[bookingIndex].status = "cancelled";
       saveAndRenderBookings();
       updateBookingsCount();
       alert("❌ Бронирование отменено");
-    } else {
-      return;
     }
   }
 });
 
 function saveAndRenderBookings() {
   localStorage.setItem("bookings", JSON.stringify(bookings));
-  renderBookings();
+  updateBookingsCount();
+  filterByStatus(statusFilter.value);
 }
+
+function filterByStatus(status) {
+  let filtered = bookings;
+
+  if (status !== "all") {
+    filtered = bookings.filter((b) => b.status === status);
+  }
+
+  if (filtered.length === 0) {
+    bookingsList.style.display = "none";
+    emptyBookings.style.display = "block";
+    emptyBookings.querySelector("p").textContent = "📊 Нет бронирований для отображения";
+    return;
+  }
+  emptyBookings.style.display = "none";
+  bookingsList.style.display = "flex";
+  bookingsList.innerHTML = filtered.map((b) => createBookingCardHTML(b)).join("");
+}
+
+statusFilter.addEventListener("change", (e) => {
+  filterByStatus(e.target.value);
+});
