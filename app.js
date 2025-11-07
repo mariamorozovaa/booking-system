@@ -412,14 +412,12 @@ function saveAndRenderBookings() {
 
 function renderBookings(filteredBookings) {
   if (filteredBookings.length === 0) {
-    bookingsList.style.display = "none";
-    emptyBookings.style.display = "block";
+    showEmptyBookings();
     emptyBookings.querySelector("p").textContent = "📊 Нет бронирований для отображения";
     return;
   }
 
-  emptyBookings.style.display = "none";
-  bookingsList.style.display = "flex";
+  showBookingList();
   const sorted = sortBookingsByDate(filteredBookings);
   bookingsList.innerHTML = sorted.map(createBookingCardHTML).join("");
 }
@@ -432,19 +430,16 @@ function filterByStatus(status) {
   }
 
   if (bookings.length === 0) {
-    bookingsList.style.display = "none";
-    emptyBookings.style.display = "block";
+    showEmptyBookings();
     return;
   }
 
   if (filtered.length === 0) {
-    bookingsList.style.display = "none";
-    emptyBookings.style.display = "block";
+    showEmptyBookings();
     emptyBookings.querySelector("p").textContent = "📊 Нет бронирований для отображения";
     return;
   }
-  emptyBookings.style.display = "none";
-  bookingsList.style.display = "flex";
+  showBookingList();
   const sorted = sortBookingsByDate(filtered);
   bookingsList.innerHTML = sorted.map(createBookingCardHTML).join("");
 }
@@ -481,4 +476,13 @@ function searchBookings(status) {
   renderBookings(filteredBookings);
 }
 
+function showBookingList() {
+  emptyBookings.style.display = "none";
+  bookingsList.style.display = "flex";
+}
+
+function showEmptyBookings() {
+  bookingsList.style.display = "none";
+  emptyBookings.style.display = "block";
+}
 //сделать валидацию полей формы бронирования
