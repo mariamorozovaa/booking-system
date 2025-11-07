@@ -180,7 +180,6 @@ btnSubmit.addEventListener("click", (e) => {
 
   bookings.push(currentBooking);
   localStorage.setItem("booking-system-bookings", JSON.stringify(bookings));
-  bookings.filter((b) => b.status !== "cancelled").length;
 
   bookingModal.style.display = "none";
 
@@ -232,6 +231,7 @@ roomsTabBtn.addEventListener("click", () => {
   roomsTab.classList.add("active");
   bookingsTab.classList.remove("active");
   bookingsTabBtn.classList.remove("active");
+  searchInput.value = "";
 });
 
 checkOutDate.addEventListener("change", (e) => {
@@ -460,20 +460,16 @@ function sortBookingsByDate(bookings) {
 }
 
 searchInput.addEventListener("input", () => {
-  let searchingText = searchInput.value.trim().toLowerCase();
   let status = statusFilter.value;
-
-  const filteredBookings = bookings.filter((booking) => {
-    const matchesStatus = status === "all" || booking.status === status;
-    const matchesName = booking.nameOfClient.toLowerCase().includes(searchingText);
-    return matchesStatus && matchesName;
-  });
-
-  renderBookings(filteredBookings);
+  searchBookings(status);
 });
 
 statusFilter.addEventListener("change", (e) => {
   let status = e.target.value;
+  searchBookings(status);
+});
+
+function searchBookings(status) {
   let searchingText = searchInput.value.trim().toLowerCase();
 
   const filteredBookings = bookings.filter((booking) => {
@@ -483,6 +479,6 @@ statusFilter.addEventListener("change", (e) => {
   });
 
   renderBookings(filteredBookings);
-});
+}
 
 //сделать валидацию полей формы бронирования
